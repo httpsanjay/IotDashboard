@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>IoT— Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --bg:        #050810;
+            --surface:   #0b0f1c;
+            --card:      #0e1424;
+            --border:    rgba(255,255,255,0.06);
+            --border-hi: rgba(255,255,255,0.12);
+
+            --accent-r:  #ff3d5a;
+            --accent-b:  #3d9eff;
+            --accent-g:  #00e5a0;
+            --accent-y:  #ffc53d;
+            --accent-p:  #a855f7;
+
+            --text:      #e4eaf5;
+            --muted:     #5a6480;
+            --sub:       #2e3650;
+
+            --font-head: 'Syne', sans-serif;
+            --font-mono: 'DM Mono', monospace;
+        }
+
+        html, body {
+            min-height: 100vh;
+            background: var(--bg);
+            color: var(--text);
+            font-family: var(--font-mono);
+            overflow-x: hidden;
+        }
+
+        /* ── Animated noise background ── */
+        body::before {
+            content: '';
+            position: fixed; inset: 0;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* ── HEADER ── */
+        header {
+            position: relative;
+            z-index: 10;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 20px 32px;
+            border-bottom: 1px solid var(--border);
+            background: rgba(5,8,16,0.8);
+            backdrop-filter: blur(20px);
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .logo-icon {
+            width: 32px; height: 32px;
+            background: linear-gradient(135deg, var(--accent-b), var(--accent-p));
+            border-radius: 8px;
+            display: grid; place-items: center;
+            font-size: 16px;
+        }
+        .logo-text {
+            font-family: var(--font-head);
+            font-weight: 800;
+            font-size: 18px;
+            letter-spacing: -0.5px;
+        }
+        .logo-text span { color: var(--accent-b); }
+
+        .header-meta {
+            display: flex;
+            align-items: center;
+            gap: 24px;
+        }
+
+        .live-badge {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 11px;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--accent-g);
+        }
+        .live-dot {
+            width: 7px; height: 7px;
+            border-radius: 50%;
+            background: var(--accent-g);
+            animation: pulse-dot 1.4s ease-in-out infinite;
+        }
+        @keyframes pulse-dot {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50%       { opacity: 0.4; transform: scale(0.7); }
+        }
+
+        .timestamp {
+            font-size: 11px;
+            color: var(--muted);
+            letter-spacing: 0.05em;
+        }
+
+        /* ── MAIN LAYOUT ── */
+        main {
+            position: relative;
+            z-index: 1;
+            padding: 28px 32px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        /* ── TOP KPI STRIP ── */
+        .kpi-strip {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 12px;
+        }
+
+        .kpi {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px 18px;
+            position: relative;
+            overflow: hidden;
+            transition: border-color 0.3s, transform 0.3s;
+            animation: fadeUp 0.5s ease both;
+        }
+        .kpi:hover {
+            border-color: var(--border-hi);
+            transform: translateY(-2px);
+        }
+        .kpi::after {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 2px;
+            border-radius: 12px 12px 0 0;
+        }
+        .kpi.r::after { background: var(--accent-r); }
+        .kpi.b::after { background: var(--accent-b); }
+        .kpi.g::after { background: var(--accent-g); }
+        .kpi.y::after { background: var(--accent-y); }
+        .kpi.p::after { background: var(--accent-p); }
+
+        .kpi-label {
+            font-size: 10px;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: var(--muted);
+            margin-bottom: 8px;
+        }
+        .kpi-value {
+            font-family: var(--font-head);
+            font-size: 26px;
+            font-weight: 700;
+            line-height: 1;
+            margin-bottom: 4px;
+        }
+        .kpi.r .kpi-value { color: var(--accent-r); }
+        .kpi.b .kpi-value { color: var(--accent-b); }
+        .kpi.g .kpi-value { color: var(--accent-g); }
+        .kpi.y .kpi-value { color: var(--accent-y); }
+        .kpi.p .kpi-value { color: var(--accent-p); }
+
+        .kpi-unit {
+            font-size: 11px;
+            color: var(--muted);
+        }
+        .kpi-delta {
+            position: absolute;
+            top: 16px; right: 16px;
+            font-size: 10px;
+            color: var(--muted);
+        }
+
+        /* ── CHART GRID ── */
+        .chart-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            grid-template-rows: auto auto;
+            gap: 16px;
+        }
+
+        .card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 20px 22px;
+            animation: fadeUp 0.5s ease both;
+            transition: border-color 0.3s;
+        }
+        .card:hover { border-color: var(--border-hi); }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 16px;
+        }
+        .card-title {
+            font-family: var(--font-head);
+            font-weight: 600;
+            font-size: 13px;
+            letter-spacing: 0.02em;
+        }
+        .card-subtitle {
+            font-size: 10px;
+            color: var(--muted);
+            margin-top: 2px;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+        }
+        .card-badge {
+            font-size: 10px;
+            padding: 3px 8px;
+            border-radius: 20px;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+        }
+        .badge-r { background: rgba(255,61,90,0.12); color: var(--accent-r); border: 1px solid rgba(255,61,90,0.2); }
+        .badge-b { background: rgba(61,158,255,0.12); color: var(--accent-b); border: 1px solid rgba(61,158,255,0.2); }
+        .badge-g { background: rgba(0,229,160,0.12); color: var(--accent-g); border: 1px solid rgba(0,229,160,0.2); }
+
+        .chart-wrap {
+            position: relative;
+            height: 200px;
+        }
+        .chart-wrap canvas { width: 100% !important; height: 100% !important; }
+
+        /* Combo chart spans full row */
+        .span-full { grid-column: 1 / -1; }
+        .combo-wrap { height: 220px; }
+
+        /* ── GAUGE + STATUS ROW ── */
+        .bottom-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 16px;
+        }
+
+        /* Gauge */
+        .gauge-card {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        .gauge-wrap {
+            position: relative;
+            width: 180px; height: 100px;
+        }
+        .gauge-wrap canvas { width: 100% !important; }
+        .gauge-center {
+            position: absolute;
+            bottom: 0; left: 50%;
+            transform: translateX(-50%);
+            text-align: center;
+        }
+        .gauge-val {
+            font-family: var(--font-head);
+            font-size: 28px;
+            font-weight: 700;
+            color: #00e5ff;
+            line-height: 1;
+        }
+        .gauge-lbl {
+            font-size: 9px;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: var(--muted);
+        }
+
+        /* Status card */
+        .status-card {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .status-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 14px;
+            background: rgba(255,255,255,0.03);
+            border-radius: 8px;
+            border: 1px solid var(--border);
+        }
+        .status-name { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.07em; }
+        .status-pill {
+            font-size: 10px;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-weight: 500;
+            letter-spacing: 0.05em;
+        }
+        .pill-on  { background: rgba(0,229,160,0.12); color: var(--accent-g); border: 1px solid rgba(0,229,160,0.25); }
+        .pill-off { background: rgba(255,61,90,0.12);  color: var(--accent-r); border: 1px solid rgba(255,61,90,0.25); }
+
+        .status-dot {
+            display: inline-block;
+            width: 6px; height: 6px;
+            border-radius: 50%;
+            margin-right: 6px;
+            vertical-align: middle;
+        }
+        .dot-on  { background: var(--accent-g); box-shadow: 0 0 6px var(--accent-g); animation: pulse-dot 1.4s ease-in-out infinite; }
+        .dot-off { background: var(--accent-r); }
+
+        /* Sparkline mini card */
+        .mini-chart-wrap { height: 120px; }
+
+        /* ── FOOTER ── */
+        footer {
+            position: relative; z-index: 1;
+            text-align: center;
+            padding: 16px;
+            font-size: 10px;
+            color: var(--sub);
+            border-top: 1px solid var(--border);
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        /* ── ANIMATIONS ── */
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .kpi:nth-child(1) { animation-delay: 0.05s; }
+        .kpi:nth-child(2) { animation-delay: 0.1s; }
+        .kpi:nth-child(3) { animation-delay: 0.15s; }
+        .kpi:nth-child(4) { animation-delay: 0.2s; }
+        .kpi:nth-child(5) { animation-delay: 0.25s; }
+
+        /* ── SCROLLBAR ── */
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--sub); border-radius: 4px; }
+
+        /* ── RESPONSIVE ── */
+        @media (max-width: 1100px) {
+            .chart-grid { grid-template-columns: 1fr; }
+        }
+        @media (max-width: 800px) {
+            .kpi-strip { grid-template-columns: repeat(2, 1fr); }
+            .bottom-row { grid-template-columns: 1fr; }
+            main { padding: 16px; }
+            header { padding: 14px 16px; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- ══ HEADER ══ -->
+<header>
+    <div class="logo">
+        <div class="logo-icon">⬡</div>
+        <div class="logo-text">IoT<span>Dashboard</span></div>
+    </div>
+    <div class="header-meta">
+        <div class="live-badge"><div class="live-dot"></div>Live Stream</div>
+        <div class="timestamp" id="clock">--:--:--</div>
+    </div>
+</header>
+
+<!-- ══ MAIN ══ -->
+<main>
+
+    <!-- KPI Strip -->
+    <div class="kpi-strip">
+        <div class="kpi r">
+            <div class="kpi-label">Temperature</div>
+            <div class="kpi-value" id="kpi-temp">--</div>
+            <div class="kpi-unit">°C</div>
+            <div class="kpi-delta" id="delta-temp">—</div>
+        </div>
+        <div class="kpi b">
+            <div class="kpi-label">Humidity</div>
+            <div class="kpi-value" id="kpi-hum">--</div>
+            <div class="kpi-unit">% RH</div>
+            <div class="kpi-delta" id="delta-hum">—</div>
+        </div>
+        <div class="kpi g">
+            <div class="kpi-label">Pressure</div>
+            <div class="kpi-value" id="kpi-pres">--</div>
+            <div class="kpi-unit">hPa</div>
+        </div>
+        <div class="kpi y">
+            <div class="kpi-label">Water Level</div>
+            <div class="kpi-value" id="kpi-water">--</div>
+            <div class="kpi-unit">%</div>
+        </div>
+        <div class="kpi p">
+            <div class="kpi-label">Sensor Status</div>
+            <div class="kpi-value" id="kpi-status-val" style="font-size:16px;margin-top:4px;">--</div>
+        </div>
+    </div>
+
+    <!-- Chart Grid -->
+    <div class="chart-grid">
+
+        <!-- Combo: Temp + Humidity (spans full) -->
+        <div class="card span-full">
+            <div class="card-header">
+                <div>
+                    <div class="card-title">Temperature &amp; Humidity</div>
+                    <div class="card-subtitle">Last 20 readings · 2s interval</div>
+                </div>
+                <div style="display:flex;gap:8px;">
+                    <span class="card-badge badge-r">Temp</span>
+                    <span class="card-badge badge-b">Humidity</span>
+                </div>
+            </div>
+            <div class="chart-wrap combo-wrap">
+                <canvas id="comboChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Pressure Area -->
+        <div class="card">
+            <div class="card-header">
+                <div>
+                    <div class="card-title">Atmospheric Pressure</div>
+                    <div class="card-subtitle">Continuous · hPa</div>
+                </div>
+                <span class="card-badge badge-g">Area</span>
+            </div>
+            <div class="chart-wrap">
+                <canvas id="pressureChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Secondary area -->
+        <div class="card">
+            <div class="card-header">
+                <div>
+                    <div class="card-title">Thermal Trace</div>
+                    <div class="card-subtitle">Derived · °C</div>
+                </div>
+                <span class="card-badge badge-r">Area</span>
+            </div>
+            <div class="chart-wrap">
+                <canvas id="areaChart"></canvas>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Bottom Row: Gauge + Status + Mini chart -->
+    <div class="bottom-row">
+
+        <!-- Water Gauge -->
+        <div class="card gauge-card">
+            <div class="card-header" style="width:100%;margin-bottom:12px;">
+                <div>
+                    <div class="card-title">💧 Water Tank</div>
+                    <div class="card-subtitle">Level · %</div>
+                </div>
+            </div>
+            <div class="gauge-wrap">
+                <canvas id="gaugeChart"></canvas>
+                <div class="gauge-center">
+                    <div class="gauge-val" id="gauge-val">--</div>
+                    <div class="gauge-lbl">% full</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sensor Status Panel -->
+        <div class="card status-card">
+            <div class="card-header">
+                <div class="card-title">System Status</div>
+            </div>
+            <div class="status-item">
+                <span class="status-name">Primary Sensor</span>
+                <span class="status-pill" id="s-primary">--</span>
+            </div>
+            <div class="status-item">
+                <span class="status-name">Data Stream</span>
+                <span class="status-pill pill-on"><span class="status-dot dot-on"></span>Active</span>
+            </div>
+            <div class="status-item">
+                <span class="status-name">Network</span>
+                <span class="status-pill pill-on"><span class="status-dot dot-on"></span>Connected</span>
+            </div>
+            <div class="status-item">
+                <span class="status-name">Last Update</span>
+                <span class="status-pill" style="color:var(--muted);border:1px solid var(--border);" id="s-updated">—</span>
+            </div>
+        </div>
+
+        <!-- Humidity mini sparkline -->
+        <div class="card">
+            <div class="card-header">
+                <div>
+                    <div class="card-title">Humidity Trend</div>
+                    <div class="card-subtitle">Sparkline · % RH</div>
+                </div>
+                <span class="card-badge badge-b">Trend</span>
+            </div>
+            <div class="chart-wrap mini-chart-wrap">
+                <canvas id="sparkChart"></canvas>
+            </div>
+        </div>
+
+    </div>
+</main>
+
+<footer>IoT Nexus · Sensor Array v2.1 · Auto-refresh 2s · © 2025</footer>
+
+<script>
+// ── CLOCK ──
+function updateClock() {
+    document.getElementById('clock').textContent = new Date().toLocaleTimeString('en-US', { hour12: false });
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// ── CHART DEFAULTS ──
+Chart.defaults.color = '#5a6480';
+Chart.defaults.font.family = "'DM Mono', monospace";
+Chart.defaults.font.size = 10;
+
+const GRID = { color: 'rgba(255,255,255,0.04)', drawBorder: false };
+const TICK = { color: '#5a6480' };
+const baseScales = {
+    x: { grid: GRID, ticks: { ...TICK, maxTicksLimit: 6 } },
+    y: { grid: GRID, ticks: TICK, border: { display: false } }
+};
+const basePlugins = {
+    legend: { display: false },
+    tooltip: {
+        backgroundColor: '#0e1424',
+        borderColor: 'rgba(255,255,255,0.08)',
+        borderWidth: 1,
+        titleColor: '#e4eaf5',
+        bodyColor: '#5a6480',
+        padding: 10,
+        cornerRadius: 8
+    }
+};
+
+// ── COMBO CHART ──
+const comboChart = new Chart(document.getElementById('comboChart'), {
+    type: 'line',
+    data: {
+        labels: [],
+        datasets: [
+            {
+                label: 'Temperature (°C)',
+                data: [],
+                borderColor: '#ff3d5a',
+                borderWidth: 2,
+                pointRadius: 0,
+                pointHoverRadius: 4,
+                tension: 0.45,
+                backgroundColor: 'rgba(255,61,90,0.07)',
+                fill: true
+            },
+            {
+                label: 'Humidity (%)',
+                data: [],
+                borderColor: '#3d9eff',
+                borderWidth: 2,
+                pointRadius: 0,
+                pointHoverRadius: 4,
+                tension: 0.45,
+                backgroundColor: 'rgba(61,158,255,0.07)',
+                fill: true
+            }
+        ]
+    },
+    options: {
+        responsive: true, maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: { ...basePlugins, legend: { display: true, labels: { color: '#5a6480', boxWidth: 10, padding: 16 } } },
+        scales: baseScales
+    }
+});
+
+// ── AREA CHART FACTORY ──
+function makeArea(id, color, label) {
+    return new Chart(document.getElementById(id), {
+        type: 'line',
+        data: {
+            labels: [],
+            datasets: [{ label, data: [], borderColor: color, backgroundColor: color + '18', fill: true, tension: 0.4, pointRadius: 0, borderWidth: 1.5 }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: basePlugins,
+            scales: baseScales
+        }
+    });
+}
+
+const pressureChart = makeArea('pressureChart', '#00e5a0', 'Pressure (hPa)');
+const areaChart     = makeArea('areaChart',     '#ff3d5a', 'Temp (°C)');
+const sparkChart    = makeArea('sparkChart',    '#3d9eff', 'Humidity (%)');
+
+// ── GAUGE ──
+const gaugeChart = new Chart(document.getElementById('gaugeChart'), {
+    type: 'doughnut',
+    data: {
+        datasets: [{
+            data: [0, 100],
+            backgroundColor: ['#00e5ff', '#1a2035'],
+            borderWidth: 0,
+            hoverBackgroundColor: ['#00e5ff', '#1a2035']
+        }]
+    },
+    options: {
+        rotation: -90,
+        circumference: 180,
+        cutout: '72%',
+        plugins: { legend: { display: false }, tooltip: { enabled: false } },
+        animation: { duration: 600 }
+    }
+});
+
+let history = [];
+const MAX_POINTS = 30;
+
+function updateDashboard(latest) {
+    const labels = history.map(d => d.time);
+    const temp   = history.map(d => d.temperature);
+    const hum    = history.map(d => d.humidity);
+    const pres   = history.map(d => d.pressure);
+
+
+    // KPIs
+    document.getElementById('kpi-temp').textContent  = latest.temperature;
+    document.getElementById('kpi-hum').textContent   = latest.humidity;
+    document.getElementById('kpi-pres').textContent  = latest.pressure;
+    document.getElementById('kpi-water').textContent = latest.waterlevel;
+
+    if (history.length > 1) {
+        const prev = history[history.length - 2];
+        const dt = +(latest.temperature - prev.temperature).toFixed(1);
+        const dh = +(latest.humidity    - prev.humidity).toFixed(1);
+        document.getElementById('delta-temp').textContent = (dt >= 0 ? '▲' : '▼') + ' ' + Math.abs(dt);
+        document.getElementById('delta-hum').textContent  = (dh >= 0 ? '▲' : '▼') + ' ' + Math.abs(dh);
+    }
+
+    // Status KPI
+    const sv = document.getElementById('kpi-status-val');
+    if (latest.sensorstatus == 1) {
+        sv.textContent = '● ONLINE';
+        sv.style.color = 'var(--accent-g)';
+    } else {
+        sv.textContent = '● OFFLINE';
+        sv.style.color = 'var(--accent-r)';
+    }
+
+    // Combo
+    comboChart.data.labels = labels;
+    comboChart.data.datasets[0].data = temp;
+    comboChart.data.datasets[1].data = hum;
+    comboChart.update('none');
+
+    // Area charts
+    pressureChart.data.labels = labels;
+    pressureChart.data.datasets[0].data = pres;
+    pressureChart.update('none');
+
+    areaChart.data.labels = labels;
+    areaChart.data.datasets[0].data = temp;
+    areaChart.update('none');
+
+    sparkChart.data.labels = labels;
+    sparkChart.data.datasets[0].data = hum;
+    sparkChart.update('none');
+
+    // Gauge
+    document.getElementById('gauge-val').textContent = latest.waterlevel;
+    gaugeChart.data.datasets[0].data = [latest.waterlevel, 100 - latest.waterlevel];
+    gaugeChart.update();
+
+    // Status panel
+    const sp = document.getElementById('s-primary');
+    if (latest.sensorstatus == 1) {
+        sp.className = 'status-pill pill-on';
+        sp.innerHTML = '<span class="status-dot dot-on"></span>Online';
+    } else {
+        sp.className = 'status-pill pill-off';
+        sp.innerHTML = '<span class="status-dot dot-off"></span>Offline';
+    }
+    document.getElementById('s-updated').textContent = new Date().toLocaleTimeString('en-US', { hour12: false });
+}
+
+// ── LIVE FETCH from Django /get-data/ ──
+function fetchData() {
+    fetch('/get-data/')
+        .then(r => r.json())
+        .then(data => {
+            if (!data || !data.length) return;
+            // Server already returns last 30 ordered by time — use all of them
+            history = data.slice(-MAX_POINTS);
+            const latest = history[history.length - 1];
+            updateDashboard(latest);
+        })
+        .catch(err => console.error('Fetch error:', err));
+}
+
+fetchData();
+setInterval(fetchData, 2000);
+</script>
+</body>
+</html>
