@@ -13,8 +13,9 @@ This project is a real-time IoT dashboard built using:
 ## Dashboard UI
 
 ### Main Dashboard
-![Dashboard Screenshot](images/SS1.png)
 ![Dashboard Screenshot](images/SS.png)
+![Dashboard Screenshot](images/SS1.png)
+
 
 
 ---
